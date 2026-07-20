@@ -94,7 +94,7 @@ vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
-vim.g.editorconfig = false
+vim.g.editorconfig = true
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -201,6 +201,20 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+-- :move always inserts after the destination, not before it.
+-- That's why the numbers for moving up/down one position are asymmetric.
+vim.keymap.set('n', '<leader>k', ':move .-2<CR>==', {
+  desc = 'Move current line up one position and re-indent the line',
+})
+vim.keymap.set('n', '<leader>j', ':move .+1<CR>==', {
+  desc = 'Move current line down one position and re-indent the line',
+})
+vim.keymap.set('v', '<leader>k', ":move '<-2<CR>gv=gv", {
+  desc = 'Move current line up one position and re-indent the line',
+})
+vim.keymap.set('v', '<leader>j', ":move '>+1<CR>gv=gv", {
+  desc = 'Move current line down one position and re-indent the line',
+})
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -219,6 +233,17 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
   callback = function()
     vim.hl.on_yank()
+  end,
+})
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'go',
+  callback = function()
+    vim.opt_local.expandtab = false
+    vim.opt_local.tabstop = 4
+    vim.opt_local.shiftwidth = 0
+    vim.opt_local.softtabstop = 0
+    vim.opt_local.smarttab = true
   end,
 })
 
@@ -893,7 +918,7 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'kanagawa-wave'
+      vim.cmd.colorscheme 'kanagawa-dragon'
     end,
   },
 
