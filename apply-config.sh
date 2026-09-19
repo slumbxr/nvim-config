@@ -2,9 +2,11 @@
 set -euo pipefail
 
 readonly _SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly _SOURCE_FILE="${_SCRIPT_DIR}/init.lua"
+readonly _SOURCE_INIT_FILE="${_SCRIPT_DIR}/init.lua"
+readonly _SOURCE_LUA_DIR="${_SCRIPT_DIR}/lua"
 readonly _TARGET_DIR="${HOME}/.config/nvim"
-readonly _TARGET_FILE="${_TARGET_DIR}/init.lua"
+readonly _TARGET_INIT_FILE="${_TARGET_DIR}/init.lua"
+readonly _TARGET_LUA_DIR="${_TARGET_DIR}/lua"
 _FORCE=0
 
 usage() {
@@ -29,20 +31,33 @@ while (($# > 0)); do
     esac
 done
 
-if [[ ! -f "${_SOURCE_FILE}" ]]; then
-    printf 'Error: config file not found: %s\n' "${_SOURCE_FILE}" >&2
+if [[ ! -f "${_SOURCE_INIT_FILE}" ]]; then
+    printf 'Error: config file not found: %s\n' "${_SOURCE_INIT_FILE}" >&2
+    exit 1
+fi
+
+if [[ ! -d "${_SOURCE_LUA_DIR}" ]]; then
+    printf 'Error: config directory not found: %s\n' "${_SOURCE_LUA_DIR}" >&2
+    exit 1
+fi
+
+if
+    [[ ${_FORCE} -ne 1 ]] &&
+        { [[ -e "${_TARGET_INIT_FILE}" ]] || [[ -L "${_TARGET_INIT_FILE}" ]] ||
+            [[ -e "${_TARGET_LUA_DIR}" ]] || [[ -L "${_TARGET_LUA_DIR}" ]]; }
+then
+    printf 'Error: Neovim config already exists in destination: %s\n' "${_TARGET_DIR}" >&2
+    printf 'Run again and use --force (or -f) to overwrite it.\n' >&2
     exit 1
 fi
 
 mkdir -p -- "${_TARGET_DIR}"
 
-if [[ -e "${_TARGET_FILE}" && ${_FORCE} -ne 1 ]]; then
-    printf 'Error: config file already exists in destination: %s\n' "${_TARGET_FILE}" >&2
-    printf 'Run again and use --force (or -f) to overwrite it.\n' >&2
-    exit 1
+if [[ ${_FORCE} -eq 1 ]]; then
+    rm -rf -- "${_TARGET_INIT_FILE}" "${_TARGET_LUA_DIR}"
 fi
 
-cp -- "${_SOURCE_FILE}" "${_TARGET_FILE}"
+cp -- "${_SOURCE_INIT_FILE}" "${_TARGET_INIT_FILE}"
+cp -R -- "${_SOURCE_LUA_DIR}" "${_TARGET_LUA_DIR}"
 
-printf 'Applied Neovim config to %s\n' "${_TARGET_FILE}"
-
+printf 'Applied Neovim config to %s\n' "${_TARGET_DIR}"
