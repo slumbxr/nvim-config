@@ -4,12 +4,15 @@ return {
 	-- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
 	"NMAC427/guess-indent.nvim", -- Detect tabstop and shiftwidth automatically
 	{ -- Highlight, edit, and navigate code
+		-- This config for nvim-treesitter works with neovim 0.12.0 or later only.
+		-- Tested on neovim 0.12.4
 		"nvim-treesitter/nvim-treesitter",
+		branch = "main",
+		lazy = false,
 		build = ":TSUpdate",
-		main = "nvim-treesitter.configs", -- Sets main module to use for opts
-		-- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-		opts = {
-			ensure_installed = {
+		config = function()
+			local treesitter = require("nvim-treesitter")
+			local ensure_installed = {
 				"bash",
 				"c",
 				"diff",
@@ -21,24 +24,74 @@ return {
 				"query",
 				"vim",
 				"vimdoc",
-			},
-			-- Autoinstall languages that are not installed
-			auto_install = true,
-			highlight = {
-				enable = true,
-				-- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-				--  If you are experiencing weird indenting issues, add the language to
-				--  the list of additional_vim_regex_highlighting and disabled languages for indent.
-				additional_vim_regex_highlighting = { "ruby" },
-			},
-			indent = { enable = true, disable = { "ruby" } },
-		},
-		-- There are additional nvim-treesitter modules that you can use to interact
-		-- with nvim-treesitter. You should go explore a few and see what interests you:
-		--
-		--    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-		--    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-		--    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+			}
+
+			local available = {}
+			for _, lang in ipairs(treesitter.get_available()) do
+				available[lang] = true
+			end
+
+			local function has_tree_sitter_cli()
+				if vim.fn.executable("tree-sitter") ~= 1 then
+					return false
+				end
+
+				local version = vim.version.parse(vim.fn.system({ "tree-sitter", "--version" }))
+				return version ~= nil and vim.version.ge(version, { 0, 26, 1 })
+			end
+
+			local function configure_buffer(buf, filetype)
+				local lang = vim.treesitter.language.get_lang(filetype) or filetype
+				local function start()
+					if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].filetype ~= filetype then
+						return
+					end
+					local ok = pcall(vim.treesitter.start, buf, lang)
+					-- Keep Ruby's built-in indentation from neovim, as in the original Kickstart configuration.
+					if ok and lang ~= "ruby" then
+						vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+					end
+				end
+
+				if vim.treesitter.language.add(lang) then
+					start()
+				elseif available[lang] and has_tree_sitter_cli() then
+					treesitter.install({ lang }):await(function(err, success)
+						if not err and success and vim.treesitter.language.add(lang) then
+							start()
+						end
+					end)
+				end
+			end
+
+			local function install_parsers()
+				if not has_tree_sitter_cli() then
+					return
+				end
+
+				treesitter.install(ensure_installed)
+				for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+					if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype ~= "" then
+						configure_buffer(buf, vim.bo[buf].filetype)
+					end
+				end
+			end
+
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = "*",
+				callback = function(args)
+					configure_buffer(args.buf, args.match)
+				end,
+			})
+
+			-- Mason installs tree-sitter-cli asynchronously on a fresh setup.
+			vim.api.nvim_create_autocmd("User", {
+				pattern = "MasonToolsUpdateCompleted",
+				callback = install_parsers,
+			})
+
+			install_parsers()
+		end,
 	},
 	--{
 	--  'sphamba/smear-cursor.nvim',

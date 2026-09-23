@@ -13,6 +13,15 @@ usage() {
     printf 'Usage: %s [--force|-f]\n' "$(basename "$0")" >&2
 }
 
+version_at_least() {
+    local major=$((10#$1)) minor=$((10#$2)) patch=$((10#$3))
+    local required_major=$4 required_minor=$5 required_patch=$6
+
+    ((major > required_major ||
+        (major == required_major && minor > required_minor) ||
+        (major == required_major && minor == required_minor && patch >= required_patch)))
+}
+
 while (($# > 0)); do
     case "$1" in
         -f|--force)
@@ -38,6 +47,22 @@ fi
 
 if [[ ! -d "${_SOURCE_LUA_DIR}" ]]; then
     printf 'Error: config directory not found: %s\n' "${_SOURCE_LUA_DIR}" >&2
+    exit 1
+fi
+
+if ! command -v nvim >/dev/null 2>&1; then
+    printf 'Error: Neovim 0.12.0 or newer is required; nvim was not found.\n' >&2
+    exit 1
+fi
+
+if ! _NVIM_VERSION_OUTPUT="$(nvim --version)" ||
+    [[ ! ${_NVIM_VERSION_OUTPUT} =~ ^NVIM\ v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+    printf 'Error: could not determine the Neovim version.\n' >&2
+    exit 1
+fi
+
+if ! version_at_least "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" 0 12 0; then
+    printf 'Error: Neovim 0.12.0 or newer is required (found %s).\n' "${BASH_REMATCH[0]}" >&2
     exit 1
 fi
 

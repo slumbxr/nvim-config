@@ -266,6 +266,7 @@ return {
 			local ensure_installed = vim.tbl_keys(servers or {})
 			vim.list_extend(ensure_installed, {
 				"stylua", -- Used to format Lua code
+				"tree-sitter-cli", -- Used to compile Treesitter parser, later version of Treesitter requires the CLI
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
